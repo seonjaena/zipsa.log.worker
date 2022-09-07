@@ -1,0 +1,1 @@
+package zipsa_log_worker
