@@ -4,7 +4,6 @@ import (
 	"github.com/google/martian/log"
 	"github.com/sirupsen/logrus"
 	"os"
-	"strings"
 	zp "zipsa.log.worker/properties"
 )
 
@@ -19,9 +18,7 @@ func init() {
 	formatter := new(logrus.TextFormatter)
 	formatter.TimestampFormat = "2006-01-02 15:04:05"
 	formatter.FullTimestamp = true
-	if strings.Compare(zp.GetLogOut(), outStdout) == 0 {
-		formatter.ForceColors = true
-	}
+	formatter.ForceColors = false
 	instance.SetFormatter(formatter)
 
 	switch zp.GetLogOut() {
@@ -30,7 +27,7 @@ func init() {
 	case outFile:
 		var filename = "logs/logfile.log"
 
-		f, err := os.OpenFile(filename, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+		f, err := os.OpenFile(filename, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0777)
 		if err != nil {
 			instance.Errorf("zlog os.OpenFile error msg=%s", err)
 		} else {

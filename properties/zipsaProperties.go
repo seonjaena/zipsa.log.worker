@@ -1,9 +1,11 @@
 package properties
 
-import "github.com/magiconair/properties"
+import (
+	"os"
+)
 
 func init() {
-
+	initProperties()
 }
 
 var zipsaPropInstance *zipsaProp
@@ -30,29 +32,24 @@ type zipsaProp struct {
 
 func initProperties() *zipsaProp {
 	if zipsaPropInstance == nil {
-		p := properties.MustLoadFiles([]string{
-			"conf/rabbitmq.properties",
-			"conf/redis.properties",
-			"conf/common.properties",
-		}, properties.UTF8, false)
 		zipsaPropInstance = &zipsaProp{
-			p.MustGetString("redis.host"),
-			p.MustGetString("redis.port"),
-			p.MustGetString("redis.password"),
-			p.MustGetString("rabbitmq.host"),
-			p.MustGetString("rabbitmq.port"),
-			p.MustGetString("rabbitmq.virtualhost"),
-			p.MustGetString("rabbitmq.username"),
-			p.MustGetString("rabbitmq.password"),
-			p.MustGetString("rabbitmq.dead-log-queue"),
-			p.MustGetString("rabbitmq.dead-log-exchange"),
-			p.MustGetString("rabbitmq.dead-log-routingkey"),
-			p.MustGetString("rabbitmq.log-queue"),
-			p.MustGetString("rabbitmq.log-exchange"),
-			p.MustGetString("rabbitmq.log-routingkey"),
-			p.MustGetString("rabbitmq.use-ssl"),
-			p.MustGetString("log.level"),
-			p.MustGetString("log.out"),
+			os.Getenv("redis_host"),
+			os.Getenv("redis_port"),
+			os.Getenv("redis_password"),
+			os.Getenv("rabbitmq_host"),
+			os.Getenv("rabbitmq_port"),
+			os.Getenv("rabbitmq_virtualhost"),
+			os.Getenv("rabbitmq_username"),
+			os.Getenv("rabbitmq_password"),
+			os.Getenv("rabbitmq_dead_log_queue"),
+			os.Getenv("rabbitmq_dead_log_exchange"),
+			os.Getenv("rabbitmq_dead_log_routingkey"),
+			os.Getenv("rabbitmq_log_queue"),
+			os.Getenv("rabbitmq_log_exchange"),
+			os.Getenv("rabbitmq_log_routingkey"),
+			os.Getenv("rabbitmq_use_ssl"),
+			os.Getenv("log_level"),
+			os.Getenv("log_out"),
 		}
 	}
 
