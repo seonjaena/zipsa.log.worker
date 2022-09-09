@@ -1,7 +1,32 @@
 package properties
 
-import (
-	"os"
+// RabbitMQ 설정
+const (
+	RabbitMQHost              = "b-eb4fa4e5-2217-4f02-aa63-4582e063c667.mq.ap-northeast-2.amazonaws.com"
+	RabbitMQUsername          = "sky114z"
+	RabbitMQPassword          = "na6080su12!@"
+	RabbitMQVirtualhost       = "/"
+	RabbitMQDeadLogExchange   = "dead-log-exchange"
+	RabbitMQDeadLogQueue      = "dead-log-queue"
+	RabbitMQDeadLogRoutingkey = "dead-log-queue"
+	RabbitMQLogExchange       = "log-exchange"
+	RabbitMQLogQueue          = "log-queue"
+	RabbitMQLogRoutingkey     = "log-queue"
+	RabbitMQPort              = "5671"
+	RabbitMQUseSSL            = true
+)
+
+// Redis 설정
+const (
+	RedisHost     = "144.24.83.179"
+	RedisPassword = "na6080su12!@"
+	RedisPort     = "6379"
+)
+
+// 공통 설정
+const (
+	LogOut   = "stdout"
+	LogLevel = "debug"
 )
 
 func init() {
@@ -25,7 +50,7 @@ type zipsaProp struct {
 	rabbitmqLogQueue          string
 	rabbitmqLogExchange       string
 	rabbitmqLogRoutingkey     string
-	rabbitmqUseSsl            string
+	rabbitmqUseSsl            bool
 	logLevel                  string
 	logOut                    string
 }
@@ -33,23 +58,23 @@ type zipsaProp struct {
 func initProperties() *zipsaProp {
 	if zipsaPropInstance == nil {
 		zipsaPropInstance = &zipsaProp{
-			os.Getenv("redis_host"),
-			os.Getenv("redis_port"),
-			os.Getenv("redis_password"),
-			os.Getenv("rabbitmq_host"),
-			os.Getenv("rabbitmq_port"),
-			os.Getenv("rabbitmq_virtualhost"),
-			os.Getenv("rabbitmq_username"),
-			os.Getenv("rabbitmq_password"),
-			os.Getenv("rabbitmq_dead_log_queue"),
-			os.Getenv("rabbitmq_dead_log_exchange"),
-			os.Getenv("rabbitmq_dead_log_routingkey"),
-			os.Getenv("rabbitmq_log_queue"),
-			os.Getenv("rabbitmq_log_exchange"),
-			os.Getenv("rabbitmq_log_routingkey"),
-			os.Getenv("rabbitmq_use_ssl"),
-			os.Getenv("log_level"),
-			os.Getenv("log_out"),
+			RedisHost,
+			RedisPort,
+			RedisPassword,
+			RabbitMQHost,
+			RabbitMQPort,
+			RabbitMQVirtualhost,
+			RabbitMQUsername,
+			RabbitMQPassword,
+			RabbitMQDeadLogQueue,
+			RabbitMQDeadLogExchange,
+			RabbitMQDeadLogRoutingkey,
+			RabbitMQLogQueue,
+			RabbitMQLogExchange,
+			RabbitMQLogRoutingkey,
+			RabbitMQUseSSL,
+			LogLevel,
+			LogOut,
 		}
 	}
 
@@ -112,7 +137,7 @@ func GetRabbitmqLogRoutingkey() string {
 	return zipsaPropInstance.rabbitmqLogRoutingkey
 }
 
-func GetRabbitmqUseSsl() string {
+func GetRabbitmqUseSsl() bool {
 	return zipsaPropInstance.rabbitmqUseSsl
 }
 
