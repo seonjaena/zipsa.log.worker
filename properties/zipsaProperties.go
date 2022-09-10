@@ -15,23 +15,23 @@ func init() {
 var zipsaPropInstance *zipsaProp
 
 type zipsaProp struct {
-	redisHost                 string
-	redisPort                 string
-	redisPassword             string
-	rabbitmqHost              string
-	rabbitmqPort              string
-	rabbitmqVirtualhost       string
-	rabbitmqUsername          string
-	rabbitmqPassword          string
-	rabbitmqDeadLogQueue      string
-	rabbitmqDeadLogExchange   string
-	rabbitmqDeadLogRoutingkey string
-	rabbitmqLogQueue          string
-	rabbitmqLogExchange       string
-	rabbitmqLogRoutingkey     string
-	rabbitmqUseSsl            bool
-	logLevel                  string
-	logOut                    string
+	redisHost               string
+	redisPort               string
+	redisPassword           string
+	rabbitmqHost            string
+	rabbitmqPort            string
+	rabbitmqVirtualhost     string
+	rabbitmqUsername        string
+	rabbitmqPassword        string
+	rabbitmqUseSsl          bool
+	rabbitmqDeadLogQueue    string
+	rabbitmqDeadLogExchange string
+	rabbitmqLogQueue        string
+	rabbitmqLogExchange     string
+	rabbitmqDeadLogTTL      int
+	rabbitmqPrefetchCnt     int
+	logLevel                string
+	logOut                  string
 }
 
 func initProperties() *zipsaProp {
@@ -52,13 +52,13 @@ func initProperties() *zipsaProp {
 			p.MustGetString("rabbitmq.virtualhost"),
 			p.MustGetString("rabbitmq.username"),
 			p.MustGetString("rabbitmq.password"),
+			p.MustGetBool("rabbitmq.use-ssl"),
 			p.MustGetString("rabbitmq.dead-log-queue"),
 			p.MustGetString("rabbitmq.dead-log-exchange"),
-			p.MustGetString("rabbitmq.dead-log-routingkey"),
 			p.MustGetString("rabbitmq.log-queue"),
 			p.MustGetString("rabbitmq.log-exchange"),
-			p.MustGetString("rabbitmq.log-routingkey"),
-			p.MustGetBool("rabbitmq.use-ssl"),
+			p.MustGetInt("rabbitmq.dead-log-ttl"),
+			p.MustGetInt("rabbitmq.prefetch-cnt"),
 			p.MustGetString("log.level"),
 			p.MustGetString("log.out"),
 		}
@@ -79,13 +79,13 @@ func printProperties() {
 	log.Printf("rabbitmq.virtualhost = %s", GetRabbitmqVirtualhost())
 	log.Printf("rabbitmq.username = %s", GetRabbitmqUsername())
 	log.Printf("rabbitmq.password = %s", GetRabbitmqPassword())
+	log.Printf("rabbitmq.use-ssl = %t", GetRabbitmqUseSsl())
 	log.Printf("rabbitmq.dead-log-queue = %s", GetRabbitmqDeadLogQueue())
 	log.Printf("rabbitmq.dead-log-exchange = %s", GetRabbitmqDeadLogExchange())
-	log.Printf("rabbitmq.dead-log-routingkey = %s", GetRabbitmqDeadLogRoutingkey())
 	log.Printf("rabbitmq.log-queue = %s", GetRabbitmqLogQueue())
 	log.Printf("rabbitmq.log-exchange = %s", GetRabbitmqLogExchange())
-	log.Printf("rabbitmq.log-routingkey = %s", GetRabbitmqLogRoutingkey())
-	log.Printf("rabbitmq.use-ssl = %t", GetRabbitmqUseSsl())
+	log.Printf("rabbitmq.dead-log-ttl = %d", GetRabbitmqDeadLogTTL())
+	log.Printf("rabbitmq.prefetch-cnt = %d", GetRabbitmqPrefetchCnt())
 	log.Printf("log.level = %s", GetLogLevel())
 	log.Printf("log.out = %s", GetLogOut())
 }
@@ -130,10 +130,6 @@ func GetRabbitmqDeadLogExchange() string {
 	return zipsaPropInstance.rabbitmqDeadLogExchange
 }
 
-func GetRabbitmqDeadLogRoutingkey() string {
-	return zipsaPropInstance.rabbitmqDeadLogRoutingkey
-}
-
 func GetRabbitmqLogQueue() string {
 	return zipsaPropInstance.rabbitmqLogQueue
 }
@@ -142,12 +138,16 @@ func GetRabbitmqLogExchange() string {
 	return zipsaPropInstance.rabbitmqLogExchange
 }
 
-func GetRabbitmqLogRoutingkey() string {
-	return zipsaPropInstance.rabbitmqLogRoutingkey
-}
-
 func GetRabbitmqUseSsl() bool {
 	return zipsaPropInstance.rabbitmqUseSsl
+}
+
+func GetRabbitmqDeadLogTTL() int {
+	return zipsaPropInstance.rabbitmqDeadLogTTL
+}
+
+func GetRabbitmqPrefetchCnt() int {
+	return zipsaPropInstance.rabbitmqPrefetchCnt
 }
 
 func GetLogLevel() string {

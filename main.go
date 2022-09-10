@@ -1,31 +1,25 @@
 package main
 
 import (
-	"time"
 	"zipsa.log.worker/rabbitmq"
 	"zipsa.log.worker/zlog"
 )
 
 var log = zlog.Instance()
 
-func work() {
+func worker() {
 	forever := make(chan bool)
-	_, err := rabbitmq.GetConn()
-	if err != nil {
-		log.Errorf("Error Occurred.")
-		log.Errorf("error: %s", err.Error())
-	}
-	go func() {
-		for {
-			log.Infof("Worker-1!!!")
-			time.Sleep(time.Second * 3)
-		}
-	}()
+	rabbitmq.GetConn()
+	rabbitmq.GetChan()
+	rabbitmq.DeclareExchange()
+	rabbitmq.DeclareQueue()
+	rabbitmq.BindQueue()
+	rabbitmq.ConsumeLog()
 	<-forever
 }
 
 func main() {
 	log.Infof("Start!!!")
-	work()
+	worker()
 	log.Infof("End!!!")
 }

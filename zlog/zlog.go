@@ -4,6 +4,7 @@ import (
 	"github.com/google/martian/log"
 	"github.com/sirupsen/logrus"
 	"os"
+	"strings"
 	zp "zipsa.log.worker/properties"
 )
 
@@ -18,7 +19,9 @@ func init() {
 	formatter := new(logrus.TextFormatter)
 	formatter.TimestampFormat = "2006-01-02 15:04:05"
 	formatter.FullTimestamp = true
-	formatter.ForceColors = false
+	if strings.Compare(zp.GetLogOut(), outStdout) == 0 {
+		formatter.ForceColors = true
+	}
 	instance.SetFormatter(formatter)
 
 	switch zp.GetLogOut() {
