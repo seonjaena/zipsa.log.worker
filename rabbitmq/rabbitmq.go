@@ -8,12 +8,23 @@ import (
 )
 
 const (
-	DirectOption = "direct"
+	DeadLetterExchangeKey string = "x-dead-letter-exchange"
+	DeadLetterRoutingKey  string = "x-dead-letter-routing-key"
+	MessageTtlKey         string = "x-message-ttl"
+	DirectOption          string = "direct"
 )
 
 var log = zlog.Instance()
 var _conn *amqp.Connection
 var _chan *amqp.Channel
+
+func init() {
+	GetConn()
+	GetChan()
+	DeclareExchange()
+	DeclareQueue()
+	BindQueue()
+}
 
 func GetConn() {
 	if _conn == nil || _conn.IsClosed() {
@@ -33,13 +44,13 @@ func DeclareQueue() {
 		log.Errorf("set prefetch count failed")
 	}
 	logArg := amqp.Table{
-		"x-dead-letter-exchange":    zp.GetRabbitmqDeadLogExchange(),
-		"x-dead-letter-routing-key": zp.GetRabbitmqDeadLogQueue(),
+		DeadLetterExchangeKey: zp.GetRabbitmqDeadLogExchange(),
+		DeadLetterRoutingKey:  zp.GetRabbitmqDeadLogQueue(),
 	}
 	deadLogArg := amqp.Table{
-		"x-dead-letter-exchange":    zp.GetRabbitmqLogExchange(),
-		"x-dead-letter-routing-key": zp.GetRabbitmqLogQueue(),
-		"x-message-ttl":             zp.GetRabbitmqDeadLogTTL(),
+		DeadLetterExchangeKey: zp.GetRabbitmqLogExchange(),
+		DeadLetterRoutingKey:  zp.GetRabbitmqLogQueue(),
+		MessageTtlKey:         zp.GetRabbitmqDeadLogTTL(),
 	}
 
 	_, err = _chan.QueueDeclare(
