@@ -1,33 +1,12 @@
 package properties
 
-// RabbitMQ 설정
-const (
-	RabbitMQHost              = "b-eb4fa4e5-2217-4f02-aa63-4582e063c667.mq.ap-northeast-2.amazonaws.com"
-	RabbitMQUsername          = "sky114z"
-	RabbitMQPassword          = "na6080su12!@"
-	RabbitMQVirtualhost       = "/"
-	RabbitMQDeadLogExchange   = "dead-log-exchange"
-	RabbitMQDeadLogQueue      = "dead-log-queue"
-	RabbitMQDeadLogRoutingkey = "dead-log-queue"
-	RabbitMQLogExchange       = "log-exchange"
-	RabbitMQLogQueue          = "log-queue"
-	RabbitMQLogRoutingkey     = "log-queue"
-	RabbitMQPort              = "5671"
-	RabbitMQUseSSL            = true
+import (
+	"fmt"
+	"github.com/magiconair/properties"
+	"log"
 )
 
-// Redis 설정
-const (
-	RedisHost     = "144.24.83.179"
-	RedisPassword = "na6080su12!@"
-	RedisPort     = "6379"
-)
-
-// 공통 설정
-const (
-	LogOut   = "stdout"
-	LogLevel = "debug"
-)
+var Profile string
 
 func init() {
 	initProperties()
@@ -56,29 +35,59 @@ type zipsaProp struct {
 }
 
 func initProperties() *zipsaProp {
+
 	if zipsaPropInstance == nil {
+		p := properties.MustLoadFiles([]string{
+			fmt.Sprintf("conf/%s/log.properties", Profile),
+			fmt.Sprintf("conf/%s/rabbitmq.properties", Profile),
+			fmt.Sprintf("conf/%s/redis.properties", Profile),
+		}, properties.UTF8, false)
+
 		zipsaPropInstance = &zipsaProp{
-			RedisHost,
-			RedisPort,
-			RedisPassword,
-			RabbitMQHost,
-			RabbitMQPort,
-			RabbitMQVirtualhost,
-			RabbitMQUsername,
-			RabbitMQPassword,
-			RabbitMQDeadLogQueue,
-			RabbitMQDeadLogExchange,
-			RabbitMQDeadLogRoutingkey,
-			RabbitMQLogQueue,
-			RabbitMQLogExchange,
-			RabbitMQLogRoutingkey,
-			RabbitMQUseSSL,
-			LogLevel,
-			LogOut,
+			p.MustGetString("redis.host"),
+			p.MustGetString("redis.port"),
+			p.MustGetString("redis.password"),
+			p.MustGetString("rabbitmq.host"),
+			p.MustGetString("rabbitmq.port"),
+			p.MustGetString("rabbitmq.virtualhost"),
+			p.MustGetString("rabbitmq.username"),
+			p.MustGetString("rabbitmq.password"),
+			p.MustGetString("rabbitmq.dead-log-queue"),
+			p.MustGetString("rabbitmq.dead-log-exchange"),
+			p.MustGetString("rabbitmq.dead-log-routingkey"),
+			p.MustGetString("rabbitmq.log-queue"),
+			p.MustGetString("rabbitmq.log-exchange"),
+			p.MustGetString("rabbitmq.log-routingkey"),
+			p.MustGetBool("rabbitmq.use-ssl"),
+			p.MustGetString("log.level"),
+			p.MustGetString("log.out"),
 		}
 	}
 
+	printProperties()
+
 	return zipsaPropInstance
+}
+
+func printProperties() {
+	log.Printf("Profile = %s", Profile)
+	log.Printf("redis.host = %s", GetRedisHost())
+	log.Printf("redis.port = %s", GetRedisPort())
+	log.Printf("redis.password = %s", GetRedisPassword())
+	log.Printf("rabbitmq.host = %s", GetRabbitmqHost())
+	log.Printf("rabbitmq.port = %s", GetRabbitmqPort())
+	log.Printf("rabbitmq.virtualhost = %s", GetRabbitmqVirtualhost())
+	log.Printf("rabbitmq.username = %s", GetRabbitmqUsername())
+	log.Printf("rabbitmq.password = %s", GetRabbitmqPassword())
+	log.Printf("rabbitmq.dead-log-queue = %s", GetRabbitmqDeadLogQueue())
+	log.Printf("rabbitmq.dead-log-exchange = %s", GetRabbitmqDeadLogExchange())
+	log.Printf("rabbitmq.dead-log-routingkey = %s", GetRabbitmqDeadLogRoutingkey())
+	log.Printf("rabbitmq.log-queue = %s", GetRabbitmqLogQueue())
+	log.Printf("rabbitmq.log-exchange = %s", GetRabbitmqLogExchange())
+	log.Printf("rabbitmq.log-routingkey = %s", GetRabbitmqLogRoutingkey())
+	log.Printf("rabbitmq.use-ssl = %t", GetRabbitmqUseSsl())
+	log.Printf("log.level = %s", GetLogLevel())
+	log.Printf("log.out = %s", GetLogOut())
 }
 
 func GetRedisHost() string {

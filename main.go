@@ -1,25 +1,31 @@
 package main
 
 import (
-	"context"
-	b64 "encoding/base64"
-	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-lambda-go/lambda"
+	"time"
+	"zipsa.log.worker/rabbitmq"
 	"zipsa.log.worker/zlog"
 )
 
 var log = zlog.Instance()
 
-func HandleRequest(ctx context.Context, event events.RabbitMQEvent) {
-	messages := event.MessagesByQueue
-	for _, message := range messages {
-		for _, data := range message {
-			decodeString, _ := b64.StdEncoding.DecodeString(data.Data)
-			log.Printf("data = %s", decodeString)
-		}
+func work() {
+	forever := make(chan bool)
+	_, err := rabbitmq.GetConn()
+	if err != nil {
+		log.Errorf("Error Occurred.")
+		log.Errorf("error: %s", err.Error())
 	}
+	go func() {
+		for {
+			log.Infof("Worker-1!!!")
+			time.Sleep(time.Second * 3)
+		}
+	}()
+	<-forever
 }
 
 func main() {
-	lambda.Start(HandleRequest)
+	log.Infof("Start!!!")
+	work()
+	log.Infof("End!!!")
 }
