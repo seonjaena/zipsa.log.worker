@@ -18,6 +18,7 @@ type zipsaProp struct {
 	redisHost               string
 	redisPort               string
 	redisPassword           string
+	redisDB                 int
 	rabbitmqHost            string
 	rabbitmqPort            string
 	rabbitmqVirtualhost     string
@@ -26,6 +27,8 @@ type zipsaProp struct {
 	rabbitmqUseSsl          bool
 	rabbitmqDeadLogQueue    string
 	rabbitmqDeadLogExchange string
+	rabbitmqWaitLogQueue    string
+	rabbitmqWaitLogExchange string
 	rabbitmqLogQueue        string
 	rabbitmqLogExchange     string
 	rabbitmqDeadLogTTL      int
@@ -47,6 +50,7 @@ func initProperties() *zipsaProp {
 			p.MustGetString("redis.host"),
 			p.MustGetString("redis.port"),
 			p.MustGetString("redis.password"),
+			p.MustGetInt("redis.db"),
 			p.MustGetString("rabbitmq.host"),
 			p.MustGetString("rabbitmq.port"),
 			p.MustGetString("rabbitmq.virtualhost"),
@@ -55,6 +59,8 @@ func initProperties() *zipsaProp {
 			p.MustGetBool("rabbitmq.use-ssl"),
 			p.MustGetString("rabbitmq.dead-log-queue"),
 			p.MustGetString("rabbitmq.dead-log-exchange"),
+			p.MustGetString("rabbitmq.wait-log-queue"),
+			p.MustGetString("rabbitmq.wait-log-exchange"),
 			p.MustGetString("rabbitmq.log-queue"),
 			p.MustGetString("rabbitmq.log-exchange"),
 			p.MustGetInt("rabbitmq.dead-log-ttl"),
@@ -74,6 +80,7 @@ func printProperties() {
 	log.Printf("redis.host = %s", GetRedisHost())
 	log.Printf("redis.port = %s", GetRedisPort())
 	log.Printf("redis.password = %s", GetRedisPassword())
+	log.Printf("redis.db = %d", GetRedisDB())
 	log.Printf("rabbitmq.host = %s", GetRabbitmqHost())
 	log.Printf("rabbitmq.port = %s", GetRabbitmqPort())
 	log.Printf("rabbitmq.virtualhost = %s", GetRabbitmqVirtualhost())
@@ -82,6 +89,8 @@ func printProperties() {
 	log.Printf("rabbitmq.use-ssl = %t", GetRabbitmqUseSsl())
 	log.Printf("rabbitmq.dead-log-queue = %s", GetRabbitmqDeadLogQueue())
 	log.Printf("rabbitmq.dead-log-exchange = %s", GetRabbitmqDeadLogExchange())
+	log.Printf("rabbitmq.wait-log-queue = %s", GetRabbitmqWaitLogQueue())
+	log.Printf("rabbitmq.wait-log-exchange = %s", GetRabbitmqWaitLogExchange())
 	log.Printf("rabbitmq.log-queue = %s", GetRabbitmqLogQueue())
 	log.Printf("rabbitmq.log-exchange = %s", GetRabbitmqLogExchange())
 	log.Printf("rabbitmq.dead-log-ttl = %d", GetRabbitmqDeadLogTTL())
@@ -100,6 +109,10 @@ func GetRedisPort() string {
 
 func GetRedisPassword() string {
 	return zipsaPropInstance.redisPassword
+}
+
+func GetRedisDB() int {
+	return zipsaPropInstance.redisDB
 }
 
 func GetRabbitmqHost() string {
@@ -128,6 +141,14 @@ func GetRabbitmqDeadLogQueue() string {
 
 func GetRabbitmqDeadLogExchange() string {
 	return zipsaPropInstance.rabbitmqDeadLogExchange
+}
+
+func GetRabbitmqWaitLogQueue() string {
+	return zipsaPropInstance.rabbitmqWaitLogQueue
+}
+
+func GetRabbitmqWaitLogExchange() string {
+	return zipsaPropInstance.rabbitmqWaitLogExchange
 }
 
 func GetRabbitmqLogQueue() string {

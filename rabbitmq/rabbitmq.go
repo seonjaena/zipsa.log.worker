@@ -47,7 +47,7 @@ func DeclareQueue() {
 		DeadLetterExchangeKey: zp.GetRabbitmqDeadLogExchange(),
 		DeadLetterRoutingKey:  zp.GetRabbitmqDeadLogQueue(),
 	}
-	deadLogArg := amqp.Table{
+	waitLogArg := amqp.Table{
 		DeadLetterExchangeKey: zp.GetRabbitmqLogExchange(),
 		DeadLetterRoutingKey:  zp.GetRabbitmqLogQueue(),
 		MessageTtlKey:         zp.GetRabbitmqDeadLogTTL(),
@@ -65,12 +65,23 @@ func DeclareQueue() {
 		log.Errorf("declare queue failed: %s", zp.GetRabbitmqLogQueue())
 	}
 	_, err = _chan.QueueDeclare(
+		zp.GetRabbitmqWaitLogQueue(),
+		true,
+		false,
+		false,
+		false,
+		waitLogArg,
+	)
+	if err != nil {
+		log.Errorf("declare queue failed: %s", zp.GetRabbitmqDeadLogQueue())
+	}
+	_, err = _chan.QueueDeclare(
 		zp.GetRabbitmqDeadLogQueue(),
 		true,
 		false,
 		false,
 		false,
-		deadLogArg,
+		nil,
 	)
 	if err != nil {
 		log.Errorf("declare queue failed: %s", zp.GetRabbitmqDeadLogQueue())
@@ -91,6 +102,18 @@ func DeclareExchange() {
 		log.Errorf("declare exchange failed: %s", zp.GetRabbitmqLogExchange())
 	}
 	err = _chan.ExchangeDeclare(
+		zp.GetRabbitmqWaitLogExchange(),
+		DirectOption,
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Errorf("declare exchange failed: %s", zp.GetRabbitmqDeadLogExchange())
+	}
+	err = _chan.ExchangeDeclare(
 		zp.GetRabbitmqDeadLogExchange(),
 		DirectOption,
 		true,
@@ -109,6 +132,16 @@ func BindQueue() {
 		zp.GetRabbitmqLogQueue(),
 		zp.GetRabbitmqLogQueue(),
 		zp.GetRabbitmqLogExchange(),
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Errorf("bind queue failed: %s, %s", zp.GetRabbitmqLogQueue(), zp.GetRabbitmqLogExchange())
+	}
+	err = _chan.QueueBind(
+		zp.GetRabbitmqWaitLogQueue(),
+		zp.GetRabbitmqWaitLogQueue(),
+		zp.GetRabbitmqWaitLogExchange(),
 		false,
 		nil,
 	)

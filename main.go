@@ -2,6 +2,7 @@ package main
 
 import (
 	"zipsa.log.worker/rabbitmq"
+	_ "zipsa.log.worker/redis"
 	"zipsa.log.worker/zlog"
 )
 
@@ -9,7 +10,7 @@ var log = zlog.Instance()
 
 func worker() {
 	forever := make(chan bool)
-	rabbitmq.ConsumeLog()
+	go rabbitmq.ConsumeLog()
 	<-forever
 }
 
