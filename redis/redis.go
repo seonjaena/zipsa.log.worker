@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/streadway/amqp"
-	"sync"
-	"time"
+	"strings"
+	"unicode"
 	zp "zipsa.log.worker/properties"
 	"zipsa.log.worker/zlog"
 )
@@ -14,16 +14,7 @@ import (
 type redisLog struct {
 	d    *amqp.Delivery
 	keys []string
-}
-
-type safeBuffer struct {
-	buffer        chan redisLog
-	innerBuffer   [][]string
-	lastDelivery  *amqp.Delivery
-	updateLocker  *sync.Mutex
-	consumeLocker chan bool
-	updateTrigger chan bool
-	cleanTrigger  chan bool
+	body string
 }
 
 const (
@@ -35,6 +26,7 @@ const (
 var log = zlog.Instance()
 var bCtx = context.Background()
 var redisClient *redis.Client
+var LogStruct *redisLog
 
 func init() {
 	GetConn()
@@ -65,31 +57,48 @@ func tryConn() {
 	}
 }
 
-func (buffer *safeBuffer) Append(body string, d *amqp.Delivery) error {
-	_, _ = parseAccessLog(body)
-	return nil
+func (redisLog *redisLog) ProcessAccessLog(data string, delivery *amqp.Delivery) {
+	keys, body, err := parseAccessLog(data)
+	if err != nil {
+		log.Errorf("Error Occurred")
+	}
+	redisLog.d = delivery
+	redisLog.keys = keys
+	redisLog.body = body
 }
 
-func parseAccessLog(body string) ([]string, error) {
+func parseAccessLog(body string) ([]string, string, error) {
 
-	curDate := time.Now()
+	messages := strings.Split(body, "^")
+	date := messages[0]
+	userNo := messages[1]
+	buildingNo := messages[2]
+
+	isProperFormat := checkAccessLogFormat(date, userNo, buildingNo)
+
+	if !isProperFormat {
+		log.Errorf("not good format")
+	}
+
+	monthlyDate := date[0:8]
+	dailyDate := date
 
 	//월 간 전체 접속자 수 (중복 제거)
-	monthTotalNDAccess := fmt.Sprintf("%s^%s^%s", curDate.Format("2006-01"), Total, NoDup)
+	monthTotalNDAccess := fmt.Sprintf("%s^%s^%s", monthlyDate, Total, NoDup)
 	//일 간 전체 접속자 수 (중복 제거)
-	dayTotalNDAccess := fmt.Sprintf("%s^%s^%s", curDate.Format("2006-01-02"), Total, NoDup)
+	dayTotalNDAccess := fmt.Sprintf("%s^%s^%s", dailyDate, Total, NoDup)
 	//월 간 전체 접속자 수 (중복 허용)
-	monthTotalODAccess := fmt.Sprintf("%s^%s^%s", curDate.Format("2006-01"), Total, OkDup)
+	monthTotalODAccess := fmt.Sprintf("%s^%s^%s", monthlyDate, Total, OkDup)
 	//일 간 전체 접속자 수 (중복 허용)
-	dayTotalODAccess := fmt.Sprintf("%s^%s^%s", curDate.Format("2006-01-02"), Total, OkDup)
+	dayTotalODAccess := fmt.Sprintf("%s^%s^%s", dailyDate, Total, OkDup)
 	//월 간 건물 당 접속자 수 (중복 제거)
-	monthBuildingNDAccess := fmt.Sprintf("%s^%s^%s", curDate.Format("2006-01"), body, NoDup)
+	monthBuildingNDAccess := fmt.Sprintf("%s^%s^%s", monthlyDate, buildingNo, NoDup)
 	//일 간 건물 당 접속자 수 (중복 제거)
-	dayBuildingNDAccess := fmt.Sprintf("%s^%s^%s", curDate.Format("2006-01-02"), body, NoDup)
+	dayBuildingNDAccess := fmt.Sprintf("%s^%s^%s", dailyDate, buildingNo, NoDup)
 	//월 간 건물 당 접속자 수 (중복 허용)
-	monthBuildingODAccess := fmt.Sprintf("%s^%s^%s", curDate.Format("2006-01"), body, OkDup)
+	monthBuildingODAccess := fmt.Sprintf("%s^%s^%s", monthlyDate, buildingNo, OkDup)
 	//일 간 건물 당 접속자 수 (중복 허용)
-	dayBuildingODAccess := fmt.Sprintf("%s^%s^%s", curDate.Format("2006-01-02"), body, OkDup)
+	dayBuildingODAccess := fmt.Sprintf("%s^%s^%s", dailyDate, buildingNo, OkDup)
 
 	return []string{
 		monthTotalNDAccess,
@@ -100,5 +109,66 @@ func parseAccessLog(body string) ([]string, error) {
 		dayBuildingNDAccess,
 		monthBuildingODAccess,
 		dayBuildingODAccess,
-	}, nil
+	}, userNo, nil
+}
+
+func checkAccessLogFormat(date string, userNo string, buildingNo string) bool {
+
+	if len(date) == 10 {
+		return false
+	}
+
+	if strings.Count(date, "-") != 2 {
+		return false
+	}
+
+	for _, c := range strings.ReplaceAll(date, "-", "") {
+		if !unicode.IsDigit(c) {
+			return false
+		}
+	}
+
+	for _, c := range userNo {
+		if !unicode.IsDigit(c) {
+			log.Errorf("UserIDX is not proper format, userNo = %s", userNo)
+			return false
+		}
+	}
+
+	for _, c := range buildingNo {
+		if !unicode.IsDigit(c) {
+			log.Errorf("BuildingIDX is not proper format, buildingNo = %s", buildingNo)
+			return false
+		}
+	}
+
+	return true
+}
+
+func (redisLog *redisLog) updateToRedis(keys []string, data string) bool {
+	pipe := redisClient.TxPipeline()
+	pipe.PFAdd(bCtx, keys[0], data)
+	pipe.PFAdd(bCtx, keys[1], data)
+	pipe.Incr(bCtx, keys[2])
+	pipe.Incr(bCtx, keys[3])
+	for i := 4; i <= 5; i++ {
+		if keys[i] != "" {
+			pipe.PFAdd(bCtx, keys[i], data)
+		}
+	}
+
+	for i := 6; i <= 7; i++ {
+		if keys[i] != "" {
+			pipe.Incr(bCtx, keys[i])
+		}
+	}
+	_, err := pipe.Exec(bCtx)
+	if err != nil {
+		log.Errorf("Failed to update to redis, error = %s", err)
+		_ = pipe.Discard()
+		return false
+	} else {
+		_ = pipe.Close()
+		return true
+	}
 }
