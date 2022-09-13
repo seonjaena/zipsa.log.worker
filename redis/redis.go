@@ -83,22 +83,33 @@ func parseAccessLog(body string) ([]string, string, error) {
 	monthlyDate := date[0:8]
 	dailyDate := date
 
+	var monthTotalNDAccess string
+	var dayTotalNDAccess string
+	var monthTotalODAccess string
+	var dayTotalODAccess string
+	var monthBuildingNDAccess string
+	var dayBuildingNDAccess string
+	var monthBuildingODAccess string
+	var dayBuildingODAccess string
+
 	//월 간 전체 접속자 수 (중복 제거)
-	monthTotalNDAccess := fmt.Sprintf("%s^%s^%s", monthlyDate, Total, NoDup)
+	monthTotalNDAccess = fmt.Sprintf("%s^%s^%s", monthlyDate, Total, NoDup)
 	//일 간 전체 접속자 수 (중복 제거)
-	dayTotalNDAccess := fmt.Sprintf("%s^%s^%s", dailyDate, Total, NoDup)
+	dayTotalNDAccess = fmt.Sprintf("%s^%s^%s", dailyDate, Total, NoDup)
 	//월 간 전체 접속자 수 (중복 허용)
-	monthTotalODAccess := fmt.Sprintf("%s^%s^%s", monthlyDate, Total, OkDup)
+	monthTotalODAccess = fmt.Sprintf("%s^%s^%s", monthlyDate, Total, OkDup)
 	//일 간 전체 접속자 수 (중복 허용)
-	dayTotalODAccess := fmt.Sprintf("%s^%s^%s", dailyDate, Total, OkDup)
-	//월 간 건물 당 접속자 수 (중복 제거)
-	monthBuildingNDAccess := fmt.Sprintf("%s^%s^%s", monthlyDate, buildingNo, NoDup)
-	//일 간 건물 당 접속자 수 (중복 제거)
-	dayBuildingNDAccess := fmt.Sprintf("%s^%s^%s", dailyDate, buildingNo, NoDup)
-	//월 간 건물 당 접속자 수 (중복 허용)
-	monthBuildingODAccess := fmt.Sprintf("%s^%s^%s", monthlyDate, buildingNo, OkDup)
-	//일 간 건물 당 접속자 수 (중복 허용)
-	dayBuildingODAccess := fmt.Sprintf("%s^%s^%s", dailyDate, buildingNo, OkDup)
+	dayTotalODAccess = fmt.Sprintf("%s^%s^%s", dailyDate, Total, OkDup)
+	if strings.Compare(strings.Trim(buildingNo, " "), "") != 0 {
+		//월 간 건물 당 접속자 수 (중복 제거)
+		monthBuildingNDAccess = fmt.Sprintf("%s^%s^%s", monthlyDate, buildingNo, NoDup)
+		//일 간 건물 당 접속자 수 (중복 제거)
+		dayBuildingNDAccess = fmt.Sprintf("%s^%s^%s", dailyDate, buildingNo, NoDup)
+		//월 간 건물 당 접속자 수 (중복 허용)
+		monthBuildingODAccess = fmt.Sprintf("%s^%s^%s", monthlyDate, buildingNo, OkDup)
+		//일 간 건물 당 접속자 수 (중복 허용)
+		dayBuildingODAccess = fmt.Sprintf("%s^%s^%s", dailyDate, buildingNo, OkDup)
+	}
 
 	return []string{
 		monthTotalNDAccess,
