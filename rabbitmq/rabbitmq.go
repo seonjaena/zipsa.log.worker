@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/streadway/amqp"
 	zp "zipsa.log.worker/properties"
+	"zipsa.log.worker/redis"
 	"zipsa.log.worker/zlog"
 )
 
@@ -20,7 +21,7 @@ var _chan *amqp.Channel
 
 func init() {
 	GetConn()
-	GetChan()
+	_ = GetChan()
 	DeclareExchange()
 	DeclareQueue()
 	BindQueue()
@@ -32,10 +33,11 @@ func GetConn() {
 	}
 }
 
-func GetChan() {
+func GetChan() *amqp.Channel {
 	if _chan == nil {
 		createChan()
 	}
+	return _chan
 }
 
 func DeclareQueue() {
@@ -174,7 +176,7 @@ func ConsumeLog() {
 		log.Errorf("consume message failed")
 	}
 	for d := range msg {
-		log.Printf("data = %s", d.Body)
+		_ = redis.LogBuffer.Append(string(d.Body), &d)
 		err := d.Ack(false)
 		if err != nil {
 			d.Reject(false)

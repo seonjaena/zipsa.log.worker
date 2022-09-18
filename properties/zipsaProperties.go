@@ -19,6 +19,8 @@ type zipsaProp struct {
 	redisPort               string
 	redisPassword           string
 	redisDB                 int
+	redisBufferSize         int
+	redisFlushIntervalMS    int
 	rabbitmqHost            string
 	rabbitmqPort            string
 	rabbitmqVirtualhost     string
@@ -51,6 +53,8 @@ func initProperties() *zipsaProp {
 			p.MustGetString("redis.port"),
 			p.MustGetString("redis.password"),
 			p.MustGetInt("redis.db"),
+			p.MustGetInt("redis.buffer-size"),
+			p.MustGetInt("redis.flush-interval-ms"),
 			p.MustGetString("rabbitmq.host"),
 			p.MustGetString("rabbitmq.port"),
 			p.MustGetString("rabbitmq.virtualhost"),
@@ -81,6 +85,8 @@ func printProperties() {
 	log.Printf("redis.port = %s", GetRedisPort())
 	log.Printf("redis.password = %s", GetRedisPassword())
 	log.Printf("redis.db = %d", GetRedisDB())
+	log.Printf("redis.buffer-size = %d", GetRedisBufferSize())
+	log.Printf("redis.flush-interval-ms = %d", GetRedisFlushIntervalMS())
 	log.Printf("rabbitmq.host = %s", GetRabbitmqHost())
 	log.Printf("rabbitmq.port = %s", GetRabbitmqPort())
 	log.Printf("rabbitmq.virtualhost = %s", GetRabbitmqVirtualhost())
@@ -113,6 +119,14 @@ func GetRedisPassword() string {
 
 func GetRedisDB() int {
 	return zipsaPropInstance.redisDB
+}
+
+func GetRedisBufferSize() int {
+	return zipsaPropInstance.redisBufferSize
+}
+
+func GetRedisFlushIntervalMS() int {
+	return zipsaPropInstance.redisFlushIntervalMS
 }
 
 func GetRabbitmqHost() string {

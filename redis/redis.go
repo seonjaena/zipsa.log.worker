@@ -6,6 +6,8 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/streadway/amqp"
 	"strings"
+	"sync"
+	"time"
 	"unicode"
 	zp "zipsa.log.worker/properties"
 	"zipsa.log.worker/zlog"
@@ -17,6 +19,16 @@ type redisLog struct {
 	body string
 }
 
+type logBuffer struct {
+	buffer          chan redisLog
+	innerKeyBuffer  [][]string
+	innerDataBuffer []string
+	lastBuffer      *amqp.Delivery
+	updateLocker    *sync.Mutex
+	consumeLocker   chan bool
+	updateTrigger   chan bool
+}
+
 const (
 	Total string = "TOTAL"
 	NoDup string = "XDUP"
@@ -26,9 +38,18 @@ const (
 var log = zlog.Instance()
 var bCtx = context.Background()
 var redisClient *redis.Client
-var LogStruct *redisLog
+var LogBuffer logBuffer
 
 func init() {
+	LogBuffer = logBuffer{
+		buffer:          make(chan redisLog),
+		innerKeyBuffer:  [][]string{},
+		innerDataBuffer: []string{},
+		lastBuffer:      nil,
+		updateLocker:    &sync.Mutex{},
+		consumeLocker:   make(chan bool),
+		updateTrigger:   make(chan bool),
+	}
 	GetConn()
 }
 
@@ -57,14 +78,49 @@ func tryConn() {
 	}
 }
 
-func (redisLog *redisLog) ProcessAccessLog(data string, delivery *amqp.Delivery) {
+func (logBuffer *logBuffer) Append(data string, delivery *amqp.Delivery) error {
 	keys, body, err := parseAccessLog(data)
 	if err != nil {
 		log.Errorf("Error Occurred")
 	}
-	redisLog.d = delivery
-	redisLog.keys = keys
-	redisLog.body = body
+	logBuffer.buffer <- redisLog{d: delivery, keys: keys, body: body}
+	<-logBuffer.consumeLocker
+	return nil
+}
+
+func (logBuffer *logBuffer) FlushData() {
+	for {
+		select {
+		case message := <-logBuffer.buffer:
+			logBuffer.updateLocker.Lock()
+			logBuffer.innerKeyBuffer = append(logBuffer.innerKeyBuffer, message.keys)
+			logBuffer.innerDataBuffer = append(logBuffer.innerDataBuffer, message.body)
+			logBuffer.lastBuffer = message.d
+			if len(logBuffer.innerKeyBuffer) >= zp.GetRedisBufferSize() && logBuffer.lastBuffer != nil {
+				for i := 0; i < len(logBuffer.innerKeyBuffer); i++ {
+					for j := 0; j < len(logBuffer.innerKeyBuffer[i]); j++ {
+						log.Infof("%s = %s", logBuffer.innerKeyBuffer[i][j], logBuffer.innerDataBuffer[i])
+					}
+				}
+				logBuffer.innerKeyBuffer = nil
+				logBuffer.innerDataBuffer = nil
+			}
+			logBuffer.consumeLocker <- true
+			logBuffer.updateLocker.Unlock()
+		case <-time.After(time.Millisecond * time.Duration(zp.GetRedisFlushIntervalMS())):
+			logBuffer.updateLocker.Lock()
+			if len(logBuffer.innerKeyBuffer) > 0 && logBuffer.lastBuffer != nil {
+				for i := 0; i < len(logBuffer.innerKeyBuffer); i++ {
+					for j := 0; j < len(logBuffer.innerKeyBuffer[i]); j++ {
+						log.Infof("%s = %s", logBuffer.innerKeyBuffer[i][j], logBuffer.innerDataBuffer[i])
+					}
+				}
+				logBuffer.innerKeyBuffer = nil
+				logBuffer.innerDataBuffer = nil
+			}
+			logBuffer.updateLocker.Unlock()
+		}
+	}
 }
 
 func parseAccessLog(body string) ([]string, string, error) {
@@ -125,7 +181,7 @@ func parseAccessLog(body string) ([]string, string, error) {
 
 func checkAccessLogFormat(date string, userNo string, buildingNo string) bool {
 
-	if len(date) == 10 {
+	if len(date) != 10 {
 		return false
 	}
 

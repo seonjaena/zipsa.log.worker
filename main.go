@@ -1,7 +1,8 @@
 package main
 
 import (
-	"zipsa.log.worker/rabbitmq"
+	mq "zipsa.log.worker/rabbitmq"
+	"zipsa.log.worker/redis"
 	_ "zipsa.log.worker/redis"
 	"zipsa.log.worker/zlog"
 )
@@ -10,7 +11,8 @@ var log = zlog.Instance()
 
 func worker() {
 	forever := make(chan bool)
-	go rabbitmq.ConsumeLog()
+	go redis.LogBuffer.FlushData()
+	go mq.ConsumeLog()
 	<-forever
 }
 
