@@ -98,9 +98,7 @@ func (logBuffer *logBuffer) FlushData() {
 			logBuffer.lastBuffer = message.d
 			if len(logBuffer.innerKeyBuffer) >= zp.GetRedisBufferSize() && logBuffer.lastBuffer != nil {
 				for i := 0; i < len(logBuffer.innerKeyBuffer); i++ {
-					for j := 0; j < len(logBuffer.innerKeyBuffer[i]); j++ {
-						log.Infof("%s = %s", logBuffer.innerKeyBuffer[i][j], logBuffer.innerDataBuffer[i])
-					}
+					updateToRedis(logBuffer.innerKeyBuffer[i], logBuffer.innerDataBuffer[i])
 				}
 				logBuffer.innerKeyBuffer = nil
 				logBuffer.innerDataBuffer = nil
@@ -111,9 +109,7 @@ func (logBuffer *logBuffer) FlushData() {
 			logBuffer.updateLocker.Lock()
 			if len(logBuffer.innerKeyBuffer) > 0 && logBuffer.lastBuffer != nil {
 				for i := 0; i < len(logBuffer.innerKeyBuffer); i++ {
-					for j := 0; j < len(logBuffer.innerKeyBuffer[i]); j++ {
-						log.Infof("%s = %s", logBuffer.innerKeyBuffer[i][j], logBuffer.innerDataBuffer[i])
-					}
+					updateToRedis(logBuffer.innerKeyBuffer[i], logBuffer.innerDataBuffer[i])
 				}
 				logBuffer.innerKeyBuffer = nil
 				logBuffer.innerDataBuffer = nil
@@ -212,23 +208,21 @@ func checkAccessLogFormat(date string, userNo string, buildingNo string) bool {
 	return true
 }
 
-func (redisLog *redisLog) updateToRedis(keys []string, data string) bool {
+func updateToRedis(keys []string, data string) bool {
 	pipe := redisClient.TxPipeline()
 	pipe.PFAdd(bCtx, keys[0], data)
 	pipe.PFAdd(bCtx, keys[1], data)
 	pipe.Incr(bCtx, keys[2])
 	pipe.Incr(bCtx, keys[3])
-	for i := 4; i <= 5; i++ {
-		if keys[i] != "" {
-			pipe.PFAdd(bCtx, keys[i], data)
+	for i := 4; i <= 7; i++ {
+		if strings.Compare(keys[i], "") == 0 {
+			return false
 		}
 	}
-
-	for i := 6; i <= 7; i++ {
-		if keys[i] != "" {
-			pipe.Incr(bCtx, keys[i])
-		}
-	}
+	pipe.PFAdd(bCtx, keys[4], data)
+	pipe.PFAdd(bCtx, keys[5], data)
+	pipe.Incr(bCtx, keys[6])
+	pipe.Incr(bCtx, keys[7])
 	_, err := pipe.Exec(bCtx)
 	if err != nil {
 		log.Errorf("Failed to update to redis, error = %s", err)
