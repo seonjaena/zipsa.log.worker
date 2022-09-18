@@ -3,7 +3,6 @@ package main
 import (
 	mq "zipsa.log.worker/rabbitmq"
 	"zipsa.log.worker/redis"
-	_ "zipsa.log.worker/redis"
 	"zipsa.log.worker/zlog"
 )
 
