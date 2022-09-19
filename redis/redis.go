@@ -97,9 +97,7 @@ func (logBuffer *logBuffer) FlushData() {
 			logBuffer.innerDataBuffer = append(logBuffer.innerDataBuffer, message.body)
 			logBuffer.lastBuffer = message.d
 			if len(logBuffer.innerKeyBuffer) >= zp.GetRedisBufferSize() && logBuffer.lastBuffer != nil {
-				for i := 0; i < len(logBuffer.innerKeyBuffer); i++ {
-					updateToRedis(logBuffer.innerKeyBuffer[i], logBuffer.innerDataBuffer[i])
-				}
+				logBuffer.updateToRedis()
 				logBuffer.innerKeyBuffer = nil
 				logBuffer.innerDataBuffer = nil
 			}
@@ -108,9 +106,7 @@ func (logBuffer *logBuffer) FlushData() {
 		case <-time.After(time.Millisecond * time.Duration(zp.GetRedisFlushIntervalMS())):
 			logBuffer.updateLocker.Lock()
 			if len(logBuffer.innerKeyBuffer) > 0 && logBuffer.lastBuffer != nil {
-				for i := 0; i < len(logBuffer.innerKeyBuffer); i++ {
-					updateToRedis(logBuffer.innerKeyBuffer[i], logBuffer.innerDataBuffer[i])
-				}
+				logBuffer.updateToRedis()
 				logBuffer.innerKeyBuffer = nil
 				logBuffer.innerDataBuffer = nil
 			}
@@ -208,27 +204,30 @@ func checkAccessLogFormat(date string, userNo string, buildingNo string) bool {
 	return true
 }
 
-func updateToRedis(keys []string, data string) bool {
+func (logBuffer *logBuffer) updateToRedis() bool {
 	pipe := redisClient.TxPipeline()
-	pipe.PFAdd(bCtx, keys[0], data)
-	pipe.PFAdd(bCtx, keys[1], data)
-	pipe.Incr(bCtx, keys[2])
-	pipe.Incr(bCtx, keys[3])
-	for i := 4; i <= 7; i++ {
-		if strings.Compare(keys[i], "") == 0 {
-			return false
+	for i := 0; i < len(logBuffer.innerKeyBuffer); i++ {
+		pipe.PFAdd(bCtx, logBuffer.innerKeyBuffer[i][0], logBuffer.innerDataBuffer[i])
+		pipe.PFAdd(bCtx, logBuffer.innerKeyBuffer[i][1], logBuffer.innerDataBuffer[i])
+		pipe.Incr(bCtx, logBuffer.innerKeyBuffer[i][2])
+		pipe.Incr(bCtx, logBuffer.innerKeyBuffer[i][3])
+		for j := 4; j <= 7; j++ {
+			if strings.Compare(logBuffer.innerKeyBuffer[i][j], "") == 0 {
+				return false
+			}
 		}
+		pipe.PFAdd(bCtx, logBuffer.innerKeyBuffer[i][4], logBuffer.innerDataBuffer[i])
+		pipe.PFAdd(bCtx, logBuffer.innerKeyBuffer[i][5], logBuffer.innerDataBuffer[i])
+		pipe.Incr(bCtx, logBuffer.innerKeyBuffer[i][6])
+		pipe.Incr(bCtx, logBuffer.innerKeyBuffer[i][7])
 	}
-	pipe.PFAdd(bCtx, keys[4], data)
-	pipe.PFAdd(bCtx, keys[5], data)
-	pipe.Incr(bCtx, keys[6])
-	pipe.Incr(bCtx, keys[7])
 	_, err := pipe.Exec(bCtx)
 	if err != nil {
 		log.Errorf("Failed to update to redis, error = %s", err)
 		_ = pipe.Discard()
 		return false
 	} else {
+		log.Infof("Success to update to redis")
 		_ = pipe.Close()
 		return true
 	}

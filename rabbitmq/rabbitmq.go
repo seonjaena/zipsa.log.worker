@@ -177,10 +177,6 @@ func ConsumeLog() {
 	}
 	for d := range msg {
 		_ = redis.LogBuffer.Append(string(d.Body), &d)
-		err := d.Ack(false)
-		if err != nil {
-			d.Reject(false)
-		}
 	}
 }
 
