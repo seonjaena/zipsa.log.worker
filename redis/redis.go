@@ -98,7 +98,14 @@ func (logBuffer *logBuffer) FlushData() {
 			logBuffer.lastBuffer = message.d
 			if len(logBuffer.innerKeyBuffer) >= zp.GetRedisBufferSize() && logBuffer.lastBuffer != nil {
 				logBuffer.updateToRedis()
-				logBuffer.innerKeyBuffer = nil
+				for {
+					err := logBuffer.lastBuffer.Ack(true)
+					if err == nil {
+						break
+					} else {
+						time.Sleep(3 * time.Second)
+					}
+				}
 				logBuffer.innerDataBuffer = nil
 			}
 			logBuffer.consumeLocker <- true
@@ -107,6 +114,14 @@ func (logBuffer *logBuffer) FlushData() {
 			logBuffer.updateLocker.Lock()
 			if len(logBuffer.innerKeyBuffer) > 0 && logBuffer.lastBuffer != nil {
 				logBuffer.updateToRedis()
+				for {
+					err := logBuffer.lastBuffer.Ack(true)
+					if err == nil {
+						break
+					} else {
+						time.Sleep(3 * time.Second)
+					}
+				}
 				logBuffer.innerKeyBuffer = nil
 				logBuffer.innerDataBuffer = nil
 			}
