@@ -227,7 +227,6 @@ func RetryMsg(d *amqp.Delivery, rejectedErr error) {
 		}
 		return
 	}
-	log.Errorf("here3")
 	deadMsg := fmt.Sprintf("%s[^]%s", string(d.Body), rejectedErr)
 	for {
 		err := _chan.Publish(
