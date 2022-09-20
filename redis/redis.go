@@ -97,13 +97,24 @@ func (logBuffer *logBuffer) FlushData() {
 			logBuffer.innerDataBuffer = append(logBuffer.innerDataBuffer, message.body)
 			logBuffer.lastBuffer = message.d
 			if len(logBuffer.innerKeyBuffer) >= zp.GetRedisBufferSize() && logBuffer.lastBuffer != nil {
-				logBuffer.updateToRedis()
-				for {
-					err := logBuffer.lastBuffer.Ack(true)
-					if err == nil {
-						break
-					} else {
-						time.Sleep(3 * time.Second)
+				isUpdated := logBuffer.updateToRedis()
+				if !isUpdated {
+					for {
+						err := logBuffer.lastBuffer.Reject(true)
+						if err == nil {
+							break
+						} else {
+							time.Sleep(3 * time.Second)
+						}
+					}
+				} else {
+					for {
+						err := logBuffer.lastBuffer.Ack(true)
+						if err == nil {
+							break
+						} else {
+							time.Sleep(3 * time.Second)
+						}
 					}
 				}
 				logBuffer.innerDataBuffer = nil
@@ -113,13 +124,24 @@ func (logBuffer *logBuffer) FlushData() {
 		case <-time.After(time.Millisecond * time.Duration(zp.GetRedisFlushIntervalMS())):
 			logBuffer.updateLocker.Lock()
 			if len(logBuffer.innerKeyBuffer) > 0 && logBuffer.lastBuffer != nil {
-				logBuffer.updateToRedis()
-				for {
-					err := logBuffer.lastBuffer.Ack(true)
-					if err == nil {
-						break
-					} else {
-						time.Sleep(3 * time.Second)
+				isUpdated := logBuffer.updateToRedis()
+				if !isUpdated {
+					for {
+						err := logBuffer.lastBuffer.Reject(true)
+						if err == nil {
+							break
+						} else {
+							time.Sleep(3 * time.Second)
+						}
+					}
+				} else {
+					for {
+						err := logBuffer.lastBuffer.Ack(true)
+						if err == nil {
+							break
+						} else {
+							time.Sleep(3 * time.Second)
+						}
 					}
 				}
 				logBuffer.innerKeyBuffer = nil
@@ -137,10 +159,11 @@ func parseAccessLog(body string) ([]string, string, error) {
 	userNo := messages[1]
 	buildingNo := messages[2]
 
-	isProperFormat := checkAccessLogFormat(date, userNo, buildingNo)
+	err := checkAccessLogFormat(date, userNo, buildingNo)
 
-	if !isProperFormat {
-		log.Errorf("not good format")
+	if err != nil {
+		log.Errorf("error occurred, %s", err.Error())
+		return []string{}, "", err
 	}
 
 	monthlyDate := date[0:8]
@@ -186,37 +209,35 @@ func parseAccessLog(body string) ([]string, string, error) {
 	}, userNo, nil
 }
 
-func checkAccessLogFormat(date string, userNo string, buildingNo string) bool {
+func checkAccessLogFormat(date string, userNo string, buildingNo string) error {
 
 	if len(date) != 10 {
-		return false
+		return fmt.Errorf("date is not proper length, need length is 10 but date is %d", len(date))
 	}
 
 	if strings.Count(date, "-") != 2 {
-		return false
+		return fmt.Errorf("date must have two character '-'")
 	}
 
 	for _, c := range strings.ReplaceAll(date, "-", "") {
 		if !unicode.IsDigit(c) {
-			return false
+			return fmt.Errorf("date can have 8 digits and 2 character '-'")
 		}
 	}
 
 	for _, c := range userNo {
 		if !unicode.IsDigit(c) {
-			log.Errorf("UserIDX is not proper format, userNo = %s", userNo)
-			return false
+			return fmt.Errorf("UserIDX is not proper format, userNo = %s", userNo)
 		}
 	}
 
 	for _, c := range buildingNo {
 		if !unicode.IsDigit(c) {
-			log.Errorf("BuildingIDX is not proper format, buildingNo = %s", buildingNo)
-			return false
+			return fmt.Errorf("BuildingIDX is not proper format, buildingNo = %s", buildingNo)
 		}
 	}
 
-	return true
+	return nil
 }
 
 func (logBuffer *logBuffer) updateToRedis() bool {
