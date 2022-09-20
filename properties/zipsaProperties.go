@@ -35,6 +35,7 @@ type zipsaProp struct {
 	rabbitmqLogExchange     string
 	rabbitmqDeadLogTTL      int
 	rabbitmqPrefetchCnt     int
+	rabbitmqRetryCnt        int64
 	logLevel                string
 	logOut                  string
 }
@@ -69,6 +70,7 @@ func initProperties() *zipsaProp {
 			p.MustGetString("rabbitmq.log-exchange"),
 			p.MustGetInt("rabbitmq.dead-log-ttl"),
 			p.MustGetInt("rabbitmq.prefetch-cnt"),
+			p.MustGetInt64("rabbitmq.retry-cnt"),
 			p.MustGetString("log.level"),
 			p.MustGetString("log.out"),
 		}
@@ -101,6 +103,7 @@ func printProperties() {
 	log.Printf("rabbitmq.log-exchange = %s", GetRabbitmqLogExchange())
 	log.Printf("rabbitmq.dead-log-ttl = %d", GetRabbitmqDeadLogTTL())
 	log.Printf("rabbitmq.prefetch-cnt = %d", GetRabbitmqPrefetchCnt())
+	log.Printf("rabbitmq.retry-cnt = %d", GetRabbitmqRetryCnt())
 	log.Printf("log.level = %s", GetLogLevel())
 	log.Printf("log.out = %s", GetLogOut())
 }
@@ -183,6 +186,10 @@ func GetRabbitmqDeadLogTTL() int {
 
 func GetRabbitmqPrefetchCnt() int {
 	return zipsaPropInstance.rabbitmqPrefetchCnt
+}
+
+func GetRabbitmqRetryCnt() int64 {
+	return zipsaPropInstance.rabbitmqRetryCnt
 }
 
 func GetLogLevel() string {

@@ -3,8 +3,9 @@ package rabbitmq
 import (
 	"fmt"
 	"github.com/streadway/amqp"
+	"strings"
+	"time"
 	zp "zipsa.log.worker/properties"
-	"zipsa.log.worker/redis"
 	"zipsa.log.worker/zlog"
 )
 
@@ -46,8 +47,8 @@ func DeclareQueue() {
 		log.Errorf("set prefetch count failed")
 	}
 	logArg := amqp.Table{
-		DeadLetterExchangeKey: zp.GetRabbitmqDeadLogExchange(),
-		DeadLetterRoutingKey:  zp.GetRabbitmqDeadLogQueue(),
+		DeadLetterExchangeKey: zp.GetRabbitmqWaitLogExchange(),
+		DeadLetterRoutingKey:  zp.GetRabbitmqWaitLogQueue(),
 	}
 	waitLogArg := amqp.Table{
 		DeadLetterExchangeKey: zp.GetRabbitmqLogExchange(),
@@ -162,24 +163,6 @@ func BindQueue() {
 	}
 }
 
-func ConsumeLog() {
-	msg, err := _chan.Consume(
-		zp.GetRabbitmqLogQueue(),
-		"",
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		log.Errorf("consume message failed")
-	}
-	for d := range msg {
-		_ = redis.LogBuffer.Append(string(d.Body), &d)
-	}
-}
-
 func createChan() {
 	for {
 		var err error
@@ -228,4 +211,68 @@ func makeConnectionURL() string {
 		mqProtocol = "amqp"
 	}
 	return fmt.Sprintf("%s://%s:%s@%s/%s", mqProtocol, zp.GetRabbitmqUsername(), zp.GetRabbitmqPassword(), zp.GetRabbitmqHost(), zp.GetRabbitmqVirtualhost())
+}
+
+func RetryMsg(d *amqp.Delivery, rejectedErr error) {
+	rejectedCnt := getRejectedCnt(d)
+	log.Infof("Rejected Count = %d", rejectedCnt)
+	if rejectedCnt == 0 || rejectedCnt+1 <= zp.GetRabbitmqRetryCnt() {
+		for {
+			err := d.Reject(false)
+			if err == nil {
+				break
+			} else {
+				time.Sleep(3 * time.Second)
+			}
+		}
+		return
+	}
+	log.Errorf("here3")
+	deadMsg := fmt.Sprintf("%s[^]%s", string(d.Body), rejectedErr)
+	for {
+		err := _chan.Publish(
+			zp.GetRabbitmqDeadLogExchange(),
+			zp.GetRabbitmqDeadLogQueue(),
+			false,
+			false,
+			amqp.Publishing{
+				ContentType: "text/plain",
+				Body:        []byte(deadMsg),
+			},
+		)
+		if err == nil {
+			break
+		} else {
+			time.Sleep(3 * time.Second)
+		}
+	}
+	for {
+		err := d.Ack(false)
+		if err == nil {
+			break
+		} else {
+			time.Sleep(3 * time.Second)
+		}
+	}
+}
+
+func getRejectedCnt(d *amqp.Delivery) int64 {
+	a := d.Headers["x-death"]
+	if a == nil {
+		return 0
+	}
+
+	for _, v := range a.([]interface{}) {
+		val := v.(amqp.Table)
+		reason, _ := val["reason"].(string)
+		if strings.Compare(reason, "rejected") == 0 {
+			val2, _ := val["count"].(int64)
+			return val2
+		}
+	}
+	return 0
+}
+
+func GetChannel() *amqp.Channel {
+	return _chan
 }

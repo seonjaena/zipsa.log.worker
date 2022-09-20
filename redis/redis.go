@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode"
 	zp "zipsa.log.worker/properties"
+	"zipsa.log.worker/rabbitmq"
 	"zipsa.log.worker/zlog"
 )
 
@@ -78,14 +79,14 @@ func tryConn() {
 	}
 }
 
-func (logBuffer *logBuffer) Append(data string, delivery *amqp.Delivery) error {
+func (logBuffer *logBuffer) Append(data string, delivery *amqp.Delivery) {
 	keys, body, err := parseAccessLog(data)
 	if err != nil {
 		log.Errorf("Error Occurred")
+		rabbitmq.RetryMsg(delivery, err)
 	}
 	logBuffer.buffer <- redisLog{d: delivery, keys: keys, body: body}
 	<-logBuffer.consumeLocker
-	return nil
 }
 
 func (logBuffer *logBuffer) FlushData() {
