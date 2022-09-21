@@ -84,9 +84,10 @@ func (logBuffer *logBuffer) Append(data string, delivery *amqp.Delivery) {
 	if err != nil {
 		log.Errorf("Error Occurred")
 		rabbitmq.RetryMsg(delivery, err)
+	} else {
+		logBuffer.buffer <- redisLog{d: delivery, keys: keys, body: body}
+		<-logBuffer.consumeLocker
 	}
-	logBuffer.buffer <- redisLog{d: delivery, keys: keys, body: body}
-	<-logBuffer.consumeLocker
 }
 
 func (logBuffer *logBuffer) FlushData() {
@@ -155,17 +156,16 @@ func (logBuffer *logBuffer) FlushData() {
 
 func parseAccessLog(body string) ([]string, string, error) {
 
-	messages := strings.Split(body, "^")
-	date := messages[0]
-	userNo := messages[1]
-	buildingNo := messages[2]
-
-	err := checkAccessLogFormat(date, userNo, buildingNo)
+	dataList, err := checkAccessLogFormat(body)
 
 	if err != nil {
 		log.Errorf("error occurred, %s", err.Error())
 		return []string{}, "", err
 	}
+
+	date := dataList[0]
+	userNo := dataList[1]
+	buildingNo := dataList[2]
 
 	monthlyDate := date[0:8]
 	dailyDate := date
@@ -210,35 +210,45 @@ func parseAccessLog(body string) ([]string, string, error) {
 	}, userNo, nil
 }
 
-func checkAccessLogFormat(date string, userNo string, buildingNo string) error {
+func checkAccessLogFormat(body string) ([]string, error) {
+
+	messages := strings.Split(body, "^")
+
+	if len(messages) != 3 {
+		return []string{}, fmt.Errorf("data is not valid format, data = %s", body)
+	}
+
+	date := messages[0]
+	userNo := messages[1]
+	buildingNo := messages[2]
 
 	if len(date) != 10 {
-		return fmt.Errorf("date is not proper length, need length is 10 but date is %d", len(date))
+		return []string{}, fmt.Errorf("date is not proper length, need length is 10 but date is %d", len(date))
 	}
 
 	if strings.Count(date, "-") != 2 {
-		return fmt.Errorf("date must have two character '-'")
+		return []string{}, fmt.Errorf("date must have two character '-'")
 	}
 
 	for _, c := range strings.ReplaceAll(date, "-", "") {
 		if !unicode.IsDigit(c) {
-			return fmt.Errorf("date can have 8 digits and 2 character '-'")
+			return []string{}, fmt.Errorf("date can have 8 digits and 2 character '-'")
 		}
 	}
 
 	for _, c := range userNo {
 		if !unicode.IsDigit(c) {
-			return fmt.Errorf("UserIDX is not proper format, userNo = %s", userNo)
+			return []string{}, fmt.Errorf("UserIDX is not proper format, userNo = %s", userNo)
 		}
 	}
 
 	for _, c := range buildingNo {
 		if !unicode.IsDigit(c) {
-			return fmt.Errorf("BuildingIDX is not proper format, buildingNo = %s", buildingNo)
+			return []string{}, fmt.Errorf("BuildingIDX is not proper format, buildingNo = %s", buildingNo)
 		}
 	}
 
-	return nil
+	return []string{date, userNo, buildingNo}, nil
 }
 
 func (logBuffer *logBuffer) updateToRedis() bool {
