@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 	zp "zipsa.log.worker/properties"
+	"zipsa.log.worker/redis"
 	"zipsa.log.worker/zlog"
 )
 
@@ -211,6 +212,28 @@ func makeConnectionURL() string {
 		mqProtocol = "amqp"
 	}
 	return fmt.Sprintf("%s://%s:%s@%s/%s", mqProtocol, zp.GetRabbitmqUsername(), zp.GetRabbitmqPassword(), zp.GetRabbitmqHost(), zp.GetRabbitmqVirtualhost())
+}
+
+func ConsumeLog() {
+	msg, err := _chan.Consume(
+		zp.GetRabbitmqLogQueue(),
+		"",
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Errorf("consume message failed")
+	}
+	for d := range msg {
+		err := redis.LogBuffer.Append(string(d.Body), &d)
+		if err != nil {
+			log.Errorf("Failed to append data to buffer, data = %s", string(d.Body))
+			RetryMsg(&d, err)
+		}
+	}
 }
 
 func RetryMsg(d *amqp.Delivery, rejectedErr error) {

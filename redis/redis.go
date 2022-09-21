@@ -10,7 +10,6 @@ import (
 	"time"
 	"unicode"
 	zp "zipsa.log.worker/properties"
-	"zipsa.log.worker/rabbitmq"
 	"zipsa.log.worker/zlog"
 )
 
@@ -27,7 +26,7 @@ type logBuffer struct {
 	lastBuffer      *amqp.Delivery
 	updateLocker    *sync.Mutex
 	consumeLocker   chan bool
-	updateTrigger   chan bool
+	cleanTrigger    chan bool
 }
 
 const (
@@ -49,7 +48,7 @@ func init() {
 		lastBuffer:      nil,
 		updateLocker:    &sync.Mutex{},
 		consumeLocker:   make(chan bool),
-		updateTrigger:   make(chan bool),
+		cleanTrigger:    make(chan bool),
 	}
 	GetConn()
 }
@@ -61,6 +60,10 @@ func GetConn() {
 }
 
 func tryConn() {
+	if redisClient != nil {
+		log.Errorf("redis client already exist")
+		return
+	}
 	for {
 		redisClient = redis.NewClient(&redis.Options{
 			Addr:     fmt.Sprintf("%s:%s", zp.GetRedisHost(), zp.GetRedisPort()),
@@ -79,15 +82,15 @@ func tryConn() {
 	}
 }
 
-func (logBuffer *logBuffer) Append(data string, delivery *amqp.Delivery) {
+func (logBuffer *logBuffer) Append(data string, delivery *amqp.Delivery) error {
 	keys, body, err := parseAccessLog(data)
 	if err != nil {
-		log.Errorf("Error Occurred")
-		rabbitmq.RetryMsg(delivery, err)
-	} else {
-		logBuffer.buffer <- redisLog{d: delivery, keys: keys, body: body}
-		<-logBuffer.consumeLocker
+		return err
 	}
+
+	logBuffer.buffer <- redisLog{d: delivery, keys: keys, body: body}
+	<-logBuffer.consumeLocker
+	return nil
 }
 
 func (logBuffer *logBuffer) FlushData() {
@@ -122,6 +125,12 @@ func (logBuffer *logBuffer) FlushData() {
 				logBuffer.innerDataBuffer = nil
 			}
 			logBuffer.consumeLocker <- true
+			logBuffer.updateLocker.Unlock()
+		case <-logBuffer.cleanTrigger:
+			logBuffer.updateLocker.Lock()
+			logBuffer.innerKeyBuffer = nil
+			logBuffer.innerDataBuffer = nil
+			logBuffer.lastBuffer = nil
 			logBuffer.updateLocker.Unlock()
 		case <-time.After(time.Millisecond * time.Duration(zp.GetRedisFlushIntervalMS())):
 			logBuffer.updateLocker.Lock()
