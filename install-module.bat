@@ -7,3 +7,4 @@ go get -u github.com/sirupsen/logrus
 go get -u github.com/google/martian
 go get -u github.com/magiconair/properties
 go get -u github.com/aws/aws-lambda-go/lambda
+go get -u github.com/go-redis/redis/v8
